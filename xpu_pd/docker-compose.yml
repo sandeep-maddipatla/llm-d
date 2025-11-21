@@ -1,0 +1,117 @@
+services:
+  router:
+    image: ghcr.io/llm-d/llm-d-routing-sidecar:v0.3.0
+    environment:
+      ROUTE_TARGETS: prefill1:8000
+      ROUTER_CONNECTOR: nixlv2
+      ROUTER_SECURE: 'false'
+      ROUTER_PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - prefill1
+
+  prefill1:
+    image: ghcr.io/llm-d/llm-d-xpu:v0.3.1
+    privileged: true
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/mei0:/dev/mei0            # Add more /dev/mei* as appropriate
+      # - /dev/mei1:/dev/mei1          # Example additional device
+    group_add:
+      - video
+    cap_add:
+      - SYS_ADMIN
+    volumes:
+      - /dev/dri/by-path:/dev/dri/by-path
+      - /sys:/sys
+      - /dev/bus:/dev/bus
+      - /dev/char:/dev/char
+      - model_data:/dev/shm
+    shm_size: 4g
+    command: >
+      vllmServe --block-size 128
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
+                --disable-log-requests
+                --disable-uvicorn-access-log
+                --max-model-len 32000
+    environment:
+      - UCX_TLS=tcp
+      - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
+      - VLLM_NIXL_SIDE_CHANNEL_PORT=5557
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
+    ports:
+      - "8001:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 64g
+    restart: unless-stopped
+
+  decode:
+    image: ghcr.io/llm-d/llm-d-xpu:v0.3.1
+    privileged: true
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/mei0:/dev/mei0            # Add more /dev/mei* as appropriate
+      # - /dev/mei1:/dev/mei1          # Example additional device
+    group_add:
+      - video
+    cap_add:
+      - SYS_ADMIN
+    volumes:
+      - /dev/dri/by-path:/dev/dri/by-path
+      - /sys:/sys
+      - /dev/bus:/dev/bus
+      - /dev/char:/dev/char
+      - model_data:/dev/shm
+    shm_size: 4g
+    command: >
+      vllmServe --block-size 128
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
+                --disable-log-requests
+                --disable-uvicorn-access-log
+                --max-model-len 32000
+    environment:
+      - UCX_TLS=tcp
+      - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
+      - VLLM_NIXL_SIDE_CHANNEL_PORT=5557
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
+    ports:
+      - "8200:8200"
+    deploy:
+      resources:
+        limits:
+          cpus: '16'
+          memory: 64g
+    restart: unless-stopped
+
+  chat_openwebui:
+    image: ${OPENWEBUI_IMAGE}
+    container_name: chat_openwebui
+    ports:
+      - 8080:8080
+    environment:
+      - OPENAI_API_BASE_URL=http://router:8000/v1
+      - OPENAI_API_KEY=dummy
+      - USE_OLLAMA=false
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+      - HTTP_PROXY=${HTTP_PROXY}
+      - HTTPS_PROXY=${HTTPS_PROXY}
+      - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
+    volumes:
+      - /tmp/gua/mins_data:/app/backend/data
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - router
+
+volumes:
+  model_data:
+    driver: local
