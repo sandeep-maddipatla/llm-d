@@ -1,9 +1,9 @@
 services:
   router:
     image: ghcr.io/llm-d/llm-d-routing-sidecar:v0.3.0
-    command: ["-secure-proxy=false", "-connector=nixlv2", "-port=8000", "-vllm-port=8001"]
+    command: ["-secure-proxy=false", "-connector=nixlv2", "-port=8000", "-vllm-port=8002"]
     environment:
-      ROUTE_TARGETS: localhost:8001,localhost:8002
+      NIXL_LOG_LEVEL: TRACE
     network_mode: "host"
     depends_on:
       - prefill1
@@ -30,7 +30,7 @@ services:
     shm_size: 4g
     command: >
       vllmServe --block-size 128
-                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_producer", "kv_buffer_device":"cpu"}'
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
                 --disable-log-requests
                 --disable-uvicorn-access-log
                 --max-model-len 32000
@@ -38,7 +38,8 @@ services:
     environment:
       - UCX_TLS=tcp
       - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
-      - VLLM_NIXL_SIDE_CHANNEL_PORT=5557
+      - VLLM_NIXL_SIDE_CHANNEL_PORT=5556
+      - NIXL_LOG_LEVEL=DEBUG
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
@@ -71,7 +72,7 @@ services:
     shm_size: 4g
     command: >
       vllmServe --block-size 128
-                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_consumer", "kv_buffer_device":"cpu"}'
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
                 --disable-log-requests
                 --disable-uvicorn-access-log
                 --max-model-len 32000
@@ -79,7 +80,8 @@ services:
     environment:
       - UCX_TLS=tcp
       - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
-      - VLLM_NIXL_SIDE_CHANNEL_PORT=5558
+      - VLLM_NIXL_SIDE_CHANNEL_PORT=5555
+      - NIXL_LOG_LEVEL=DEBUG
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
