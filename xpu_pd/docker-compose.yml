@@ -1,15 +1,14 @@
 services:
   router:
     image: ghcr.io/llm-d/llm-d-routing-sidecar:v0.3.0
+    command: ["-secure-proxy=false", "-connector=nixlv2", "-port=8000"]
     environment:
-      ROUTE_TARGETS: prefill1:8000
-      ROUTER_CONNECTOR: nixlv2
-      ROUTER_SECURE: 'false'
-      ROUTER_PORT: "8000"
+      ROUTE_TARGETS: prefill1:8000,decode:8000
     ports:
       - "8000:8000"
     depends_on:
       - prefill1
+      - decode
 
   prefill1:
     image: ghcr.io/llm-d/llm-d-xpu:v0.3.1
@@ -110,7 +109,7 @@ services:
       - /tmp/gua/mins_data:/app/backend/data
       - /etc/localtime:/etc/localtime:ro
     depends_on:
-      - router
+      - prefill1
 
 volumes:
   model_data:
