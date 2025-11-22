@@ -1,11 +1,10 @@
 services:
   router:
     image: ghcr.io/llm-d/llm-d-routing-sidecar:v0.3.0
-    command: ["-secure-proxy=false", "-connector=nixlv2", "-port=8000"]
+    command: ["-secure-proxy=false", "-connector=nixlv2", "-port=8000", "-vllm-port=8001"]
     environment:
-      ROUTE_TARGETS: prefill1:8000,decode:8000
-    ports:
-      - "8000:8000"
+      ROUTE_TARGETS: localhost:8001,localhost:8002
+    network_mode: "host"
     depends_on:
       - prefill1
       - decode
@@ -13,6 +12,7 @@ services:
   prefill1:
     image: ghcr.io/llm-d/llm-d-xpu:v0.3.1
     privileged: true
+    network_mode: "host"
     devices:
       - /dev/dri:/dev/dri
       - /dev/mei0:/dev/mei0            # Add more /dev/mei* as appropriate
@@ -30,10 +30,11 @@ services:
     shm_size: 4g
     command: >
       vllmServe --block-size 128
-                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_producer", "kv_buffer_device":"cpu"}'
                 --disable-log-requests
                 --disable-uvicorn-access-log
                 --max-model-len 32000
+                --port 8001
     environment:
       - UCX_TLS=tcp
       - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
@@ -42,8 +43,6 @@ services:
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
-    ports:
-      - "8001:8000"
     deploy:
       resources:
         limits:
@@ -54,6 +53,7 @@ services:
   decode:
     image: ghcr.io/llm-d/llm-d-xpu:v0.3.1
     privileged: true
+    network_mode: "host"
     devices:
       - /dev/dri:/dev/dri
       - /dev/mei0:/dev/mei0            # Add more /dev/mei* as appropriate
@@ -71,20 +71,19 @@ services:
     shm_size: 4g
     command: >
       vllmServe --block-size 128
-                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
+                --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_consumer", "kv_buffer_device":"cpu"}'
                 --disable-log-requests
                 --disable-uvicorn-access-log
                 --max-model-len 32000
+                --port 8002
     environment:
       - UCX_TLS=tcp
       - VLLM_NIXL_SIDE_CHANNEL_HOST=localhost
-      - VLLM_NIXL_SIDE_CHANNEL_PORT=5557
+      - VLLM_NIXL_SIDE_CHANNEL_PORT=5558
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
       - HTTP_PROXY=${HTTP_PROXY}
       - HTTPS_PROXY=${HTTPS_PROXY}
       - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
-    ports:
-      - "8200:8200"
     deploy:
       resources:
         limits:
@@ -95,10 +94,9 @@ services:
   chat_openwebui:
     image: ${OPENWEBUI_IMAGE}
     container_name: chat_openwebui
-    ports:
-      - 8080:8080
+    network_mode: "host"
     environment:
-      - OPENAI_API_BASE_URL=http://router:8000/v1
+      - OPENAI_API_BASE_URL=http://localhost:8000/v1
       - OPENAI_API_KEY=dummy
       - USE_OLLAMA=false
       - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
