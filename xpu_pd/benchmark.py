@@ -195,6 +195,32 @@ class ThroughputAnalyzer:
             'avg_xfer_time_ms': avg_xfer_time,
             'throughput_mbps': avg_throughput
         }
+    
+    @staticmethod
+    def analyze_and_print_container_metrics(container_name: str, log_since: str):
+        """Analyze and print metrics for a single container."""
+        logs = ThroughputAnalyzer.get_logs_since(container_name, log_since)
+        metrics = ThroughputAnalyzer.extract_throughput_metrics(logs)
+        kv_metrics = ThroughputAnalyzer.get_kv_transfer_metrics(logs)
+        
+        if metrics:
+            # Get the last few metrics
+            recent = metrics[-3:] if len(metrics) >= 3 else metrics
+            avg_prompt = sum(m['prompt_throughput'] for m in recent) / len(recent)
+            avg_gen = sum(m['generation_throughput'] for m in recent) / len(recent)
+            
+            print(f"\n{container_name}:")
+            print(f"  Avg Prompt Throughput: {avg_prompt:.2f} tokens/s")
+            print(f"  Avg Generation Throughput: {avg_gen:.2f} tokens/s")
+            print(f"  Samples: {len(metrics)}")
+            
+            if kv_metrics:
+                print(f"\n  KV Transfer Metrics:")
+                print(f"    Successful Transfers: {kv_metrics['num_transfers']}")
+                print(f"    Avg Transfer Time: {kv_metrics['avg_xfer_time_ms']:.2f} ms")
+                print(f"    Transfer Throughput: {kv_metrics['throughput_mbps']:.2f} MB/s")
+        else:
+            print(f"\n{container_name}: No throughput metrics found")
 
 
 def send_chat_completion(
@@ -324,55 +350,14 @@ def run_benchmark(args):
     print("PREFILL CONTAINERS:")
     print("-" * 80)
     for prefill in prefills:
-        logs = ThroughputAnalyzer.get_logs_since(prefill.name, log_since)
-        metrics = ThroughputAnalyzer.extract_throughput_metrics(logs)
-        kv_metrics = ThroughputAnalyzer.get_kv_transfer_metrics(logs)
-        
-        if metrics:
-            # Get the last few metrics
-            recent = metrics[-3:] if len(metrics) >= 3 else metrics
-            avg_prompt = sum(m['prompt_throughput'] for m in recent) / len(recent)
-            avg_gen = sum(m['generation_throughput'] for m in recent) / len(recent)
-            
-            print(f"\n{prefill.name}:")
-            print(f"  Avg Prompt Throughput: {avg_prompt:.2f} tokens/s")
-            print(f"  Avg Generation Throughput: {avg_gen:.2f} tokens/s")
-            print(f"  Samples: {len(metrics)}")
-            
-            if kv_metrics:
-                print(f"\n  KV Transfer Metrics:")
-                print(f"    Successful Transfers: {kv_metrics['num_transfers']}")
-                print(f"    Avg Transfer Time: {kv_metrics['avg_xfer_time_ms']:.2f} ms")
-                print(f"    Transfer Throughput: {kv_metrics['throughput_mbps']:.2f} MB/s")
-        else:
-            print(f"\n{prefill.name}: No throughput metrics found")
+        ThroughputAnalyzer.analyze_and_print_container_metrics(prefill.name, log_since)
     
     print()
     print("-" * 80)
     print("DECODE CONTAINERS:")
     print("-" * 80)
     for decode in decodes:
-        logs = ThroughputAnalyzer.get_logs_since(decode.name, log_since)
-        metrics = ThroughputAnalyzer.extract_throughput_metrics(logs)
-        kv_metrics = ThroughputAnalyzer.get_kv_transfer_metrics(logs)
-        
-        if metrics:
-            recent = metrics[-3:] if len(metrics) >= 3 else metrics
-            avg_prompt = sum(m['prompt_throughput'] for m in recent) / len(recent)
-            avg_gen = sum(m['generation_throughput'] for m in recent) / len(recent)
-            
-            print(f"\n{decode.name}:")
-            print(f"  Avg Prompt Throughput: {avg_prompt:.2f} tokens/s")
-            print(f"  Avg Generation Throughput: {avg_gen:.2f} tokens/s")
-            print(f"  Samples: {len(metrics)}")
-            
-            if kv_metrics:
-                print(f"\n  KV Transfer Metrics:")
-                print(f"    Successful Transfers: {kv_metrics['num_transfers']}")
-                print(f"    Avg Transfer Time: {kv_metrics['avg_xfer_time_ms']:.2f} ms")
-                print(f"    Transfer Throughput: {kv_metrics['throughput_mbps']:.2f} MB/s")
-        else:
-            print(f"\n{decode.name}: No throughput metrics found")
+        ThroughputAnalyzer.analyze_and_print_container_metrics(decode.name, log_since)
     
     print()
     print("-" * 80)
