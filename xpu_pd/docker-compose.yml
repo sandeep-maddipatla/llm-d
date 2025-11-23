@@ -93,24 +93,6 @@ services:
           memory: 64g
     restart: unless-stopped
 
-  chat_openwebui:
-    image: ${OPENWEBUI_IMAGE}
-    container_name: chat_openwebui
-    network_mode: "host"
-    environment:
-      - OPENAI_API_BASE_URL=http://localhost:8000/v1
-      - OPENAI_API_KEY=dummy
-      - USE_OLLAMA=false
-      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
-      - HTTP_PROXY=${HTTP_PROXY}
-      - HTTPS_PROXY=${HTTPS_PROXY}
-      - NO_PROXY=${NO_PROXY},router,localhost,decode,prefill1
-    volumes:
-      - /tmp/gua/mins_data:/app/backend/data
-      - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - prefill1
-
 volumes:
   model_data:
     driver: local
