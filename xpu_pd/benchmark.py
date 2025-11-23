@@ -319,6 +319,10 @@ def run_benchmark(args):
             else:
                 tokens = result.get('usage', {}).get('total_tokens', 0)
                 print(f"✓ ({tokens} tokens, took {request_time:.2f}s)")
+
+                if args.print_response:
+                    content = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                    print(f"    Response: {content}")
             
             results.append({'success': 'error' not in result, 'result': result})
         except Exception as e:
@@ -371,7 +375,8 @@ def run_benchmark(args):
     print()
 
 
-def main():
+def get_arguments():
+    """Parse and return command line arguments."""
     parser = argparse.ArgumentParser(
         description='Benchmark disaggregated vLLM inference with router-based scheduling'
     )
@@ -403,10 +408,17 @@ def main():
         default=1.0,
         help='Time gap between requests in seconds (default: 1.0)'
     )
+    parser.add_argument(
+        '--print-response',
+        action='store_true',
+        help='Print the full response content for each request (default: False)'
+    )
     
-    args = parser.parse_args()
-    
-    # Run the benchmark
+    return parser.parse_args()
+
+
+def main():
+    args = get_arguments()
     run_benchmark(args)
 
 
