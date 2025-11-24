@@ -1,11 +1,11 @@
-# Disaggregated vLLM Benchmark Suite
+# Disaggregated vLLM Solution on XPU Devices
 
 This directory contains a Docker Compose configuration and a benchmark script for testing disaggregated vLLM inference with separate prefill and decode containers on XPU devices.
 
 
 ## Overview
 
-### Objective
+#### Objective
 
 The goal of this setup is to demonstrate and benchmark **disaggregated inference** using vLLM, where:
 
@@ -21,9 +21,9 @@ The benchmark script (`benchmark.py`) automates testing of this disaggregated se
 - Measuring throughput and KV transfer metrics
 - Supporting both synchronous and asynchronous request patterns
 
-## Architecture Details
+### Architecture Details
 
-### Container Configuration
+#### Container Configuration
 
 - **Router** (`llm-d-routing-sidecar:v0.3.0`).
   - Port: 8000
@@ -43,13 +43,13 @@ The benchmark script (`benchmark.py`) automates testing of this disaggregated se
   - Role: `kv_both` (can send/receive KV cache)
   - Receives KV cache and performs generation
 
-### Network Configuration
+#### Network Configuration
 
 All containers use **host networking** mode for optimal performance and to enable NIXL (UCX-based) communication between prefill and decode containers.
 
 This is necessitated by the [requirements of the `llm-d-routing-sidecar` container](https://github.com/llm-d/llm-d/blob/v0.3.1/guides/pd-disaggregation/README.xpu.md).
 
-### Model
+#### Model
 
 Default model: **Qwen/Qwen3-0.6B** (small model for testing)
 
